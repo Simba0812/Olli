@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>披薩店線上訂餐系統</title>
+    <!-- 引入 Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @media (max-width: 768px) {
+            .pizza-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .pizza-image {
+                margin-bottom: 10px;
+            }
+            .language-switch {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 20px;
+            }
+            #menu {
+                padding: 0 10px;
+            }
+            label {
+                margin-top: 10px;
+            }
+        }
+        body {
+            
+            background-size: cover;
+            
+        }
+        .pizza-item {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+        }
+        .pizza-image {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            margin-right: 20px;
+            border-radius: 8px;
+        }
+        .pizza-details {
+            flex: 1;
+        }
+        .language-switch {
+            margin-bottom: 20px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="container mt-5" >
+
+<h1 id="title">披薩店線上點餐系統</h1>
+
+<!-- 語言切換按鈕 -->
+<div class="language-switch">
+    <button onclick="setLanguage('zh')" class="btn btn-secondary">中文</button>
+    <button onclick="setLanguage('en')" class="btn btn-secondary">English</button>
+</div>
+
+<!-- 顯示菜單 -->
+<div id="menu">
+    <h2 id="menuTitle">菜單</h2>
+</div>
+
+<!-- 顯示總金額 -->
+<div id="total-price" class="mt-3">
+    <strong>總金額：$<span id="price">0</span></strong>
+</div>
+
+<!-- 提交訂單按鈕 -->
+<button id="orderButton" onclick="sendOrder()" class="btn btn-primary mt-3">提交訂單</button>
+
+<!-- 顯示領餐號碼 -->
+<div id="queue-number" class="mt-3"></div>
+
+<!-- 顯示訂單編號的彈出視窗 -->
+<div id="orderModal" class="modal">
+    <div class="modal-content">
+        <h2 id="modalQueueNumber"></h2>
+        <button onclick="closeModal()" class="btn btn-secondary mt-3">確定</button>
+    </div>
+</div>
+
+<script>
+// 語言包
+const languages = {
+    zh: {
+        title: "披薩店線上點餐系統",
+        menuTitle: "菜單",
+        orderButton: "提交訂單",
+        size: ["大", "中", "小"],
+        currency: "元",
+        queueNumber: "領餐號碼：",
+        modalQueueNumber: "您的訂單編號為：",
+    },
+    en: {
+        title: "Pizza Shop Online Ordering System",
+        menuTitle: "Menu",
+        orderButton: "Submit Order",
+        size: ["Large", "Medium", "Small"],
+        currency: "USD",
+        queueNumber: "Queue Number: ",
+        modalQueueNumber: "Your Order Number is: ",
+    }
+};
+
+// 設定預設語言
+let currentLang = "zh";
+let orderCount = 0; // 訂單計數器
+
+// 披薩選項（不同尺寸和價格）
+const pizzas = [
+    { name: { zh: "披薩1", en: "Pizza 1" }, prices: { large: 30, medium: 25, small: 20 }, imageUrl: 'pizza1.jpg' },
+    { name: { zh: "披薩2", en: "Pizza 2" }, prices: { large: 28, medium: 23, small: 18 }, imageUrl: 'pizza2.jpg' },
+    { name: { zh: "披薩3", en: "Pizza 3" }, prices: { large: 32, medium: 27, small: 22 }, imageUrl: 'pizza3.jpg' },
+    { name: { zh: "披薩4", en: "Pizza 4" }, prices: { large: 29, medium: 24, small: 19 }, imageUrl: 'pizza4.jpg' },
+    { name: { zh: "披薩5", en: "Pizza 5" }, prices: { large: 31, medium: 26, small: 21 }, imageUrl: 'pizza5.jpg' }
+];
+
+// 設定語言
+function setLanguage(lang) {
+    currentLang = lang;
+    document.getElementById("title").innerText = languages[lang].title;
+    document.getElementById("menuTitle").innerText = languages[lang].menuTitle;
+    document.getElementById("orderButton").innerText = languages[lang].orderButton;
+    renderMenu();
+}
+
+// 動態生成菜單
+function renderMenu() {
+    const menu = document.getElementById('menu');
+    menu.innerHTML = ''; // 清空原本的內容
+
+    pizzas.forEach((pizza, index) => {
+        const item = document.createElement('div');
+        item.className = 'pizza-item';
+        item.innerHTML = `
+            <img src="${pizza.imageUrl}" alt="${pizza.name[currentLang]}" class="pizza-image">
+            <div class="pizza-details">
+                <h5>${pizza.name[currentLang]}</h5>
+                <div class="size-options">
+                    <div>${languages[currentLang].size[0]} - $${pizza.prices.large} ${languages[currentLang].currency}
+                        <input type="radio" name="size-${index}" value="large" onchange="updateTotal()">
+                    </div>
+                    <div>${languages[currentLang].size[1]} - $${pizza.prices.medium} ${languages[currentLang].currency}
+                        <input type="radio" name="size-${index}" value="medium" checked onchange="updateTotal()">
+                    </div>
+                    <div>${languages[currentLang].size[2]} - $${pizza.prices.small} ${languages[currentLang].currency}
+                        <input type="radio" name="size-${index}" value="small" onchange="updateTotal()">
+                    </div>
+                </div>
+                <label>數量：
+                    <input type="number" id="quantity-${index}" min="0" value="0" onchange="updateTotal()">
+                </label>
+                <label>特殊需求：
+                    <textarea class="form-control special-request" id="specialRequest-${index}" rows="2"></textarea>
+                </label>
+            </div>
+        `;
+        menu.appendChild(item);
+    });
+}
+
+// 計算總金額
+function updateTotal() {
+    let total = 0;
+    pizzas.forEach((pizza, index) => {
+        const quantity = parseInt(document.getElementById(`quantity-${index}`).value);
+        const size = document.querySelector(`input[name="size-${index}"]:checked`).value;
+        if (quantity > 0) {
+            const price = pizza.prices[size];
+            total += price * quantity;
+        }
+    });
+    document.getElementById('price').innerText = total;
+}
+
+// 模擬訂單提交
+function sendOrder() {
+    let orderSummary = currentLang === "zh" ? "訂單摘要：\n" : "Order Summary:\n";
+    let hasOrder = false;
+    pizzas.forEach((pizza, index) => {
+        const quantity = parseInt(document.getElementById(`quantity-${index}`).value);
+        const size = document.querySelector(`input[name="size-${index}"]:checked`).value;
+        if (quantity > 0) {
+            hasOrder = true;
+            orderSummary += `${pizza.name[currentLang]} (${languages[currentLang].size[size === "large" ? 0 : size === "medium" ? 1 : 2]}) x ${quantity}\n`;
+            const specialRequest = document.getElementById(`specialRequest-${index}`).value;
+            if (specialRequest) {
+                orderSummary += `特殊需求： ${specialRequest}\n`;
+            }
+        }
+    });
+
+    if (hasOrder) {
+        orderCount += 1; // 增加訂單計數器
+        orderSummary += `\n${languages[currentLang].queueNumber} ${orderCount}`;
+        alert(orderSummary + `\n${currentLang === "zh" ? "總金額：" : "Total Price:"} $${document.getElementById('price').innerText}`);
+        document.getElementById('queue-number').innerText = `${languages[currentLang].queueNumber} ${orderCount}`;
+        showModal(orderCount); // 顯示訂單編號的彈出視窗
+        sendLineNotify(orderSummary); // 發送訂單到 Line Notify
+    } else {
+        alert(currentLang === "zh" ? "請選擇至少一個披薩進行訂購！" : "Please select at least one pizza to order!");
+    }
+}
+
+// 顯示訂單編號的彈出視窗
+function showModal(queueNumber) {
+    const modal = document.getElementById('orderModal');
+    document.getElementById('modalQueueNumber').innerText = `${languages[currentLang].modalQueueNumber} ${queueNumber}`;
+    modal.style.display = 'flex';
+}
+
+// 關閉彈出視窗
+function closeModal() {
+    const modal = document.getElementById('orderModal');
+    modal.style.display = 'none';
+}
+
+// 發送訂單到 Line Notify
+function sendLineNotify(orderSummary) {
+    const token = 'YOUR_LINE_NOTIFY_ACCESS_TOKEN'; // 替換為你的 Line Notify 權杖
+    const message = orderSummary;
+
+    fetch("https://notify-api.line.me/api/notify", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Bearer ${token}`
+        },
+        body: `message=${encodeURIComponent(message)}`
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log("Line Notify 發送成功");
+        } else {
+            console.error("Line Notify 發送失敗");
+        }
+    })
+    .catch(error => {
+        console.error("Error:", error);
+    });
+}
+
+// 歸零機制（重置訂單編號）
+function resetOrderCount() {
+    orderCount = 0;
+    document.getElementById('queue-number').innerText = '';
+    alert(currentLang === "zh" ? "訂單編號已重置！" : "Order number has been reset!");
+}
+
+// 初始化菜單
+document.addEventListener("DOMContentLoaded", function() {
+    renderMenu();
+    
+    // 檢查 URL 是否包含 ?admin=true，顯示重置按鈕
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('admin') === 'true') {
+        document.querySelector('button[onclick="resetOrderCount()"]').style.display = 'block';
+    }
+});
+</script>
+
+<!-- 引入 Bootstrap JavaScript Bundle（包含 Popper）-->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- 重置訂單按鈕（僅後台可見，可以根據需要隱藏或限制存取） -->
+<button onclick="resetOrderCount()" class="btn btn-warning mt-3" style="display: none;">重置訂單編號</button>
+
+</body>
+</html>
